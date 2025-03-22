@@ -32,6 +32,18 @@ router.get("/", async (req, res) => {
   }
 });
 
+router.get("/:id", async (req, res) => {
+  try {
+    const requestItem = await Request.findById(req.params.id).populate("requester", "name email");
+    if (!requestItem) {
+      return res.status(404).json({ message: "Request not found" });
+    }
+    res.json(requestItem);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.post("/", authMiddleware, async (req, res) => {
   const { title, description, location } = req.body;
   try {

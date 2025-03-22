@@ -39,8 +39,15 @@ const Requests = () => {
   useEffect(() => {
     if (user) {
       fetchRequests();
+  
+      const intervalId = setInterval(() => {
+        fetchRequests();
+      }, 60000);
+  
+      return () => clearInterval(intervalId);
     }
   }, [user, currentPage, locationFilter, sortOrder]);
+  
 
   const handleLocationChange = (e) => {
     setLocationFilter(e.target.value);
@@ -66,7 +73,7 @@ const Requests = () => {
 
       <div className="w-full bg-gradient-to-r from-blue-600 to-blue-400 p-10 mt-16">
         <div className="max-w-7xl mx-auto text-center">
-          <h1 className="text-3xl font-bold">Active Requests</h1>
+          <h1 className="text-3xl font-bold">All Active Requests</h1>
         </div>
       </div>
 
@@ -104,15 +111,17 @@ const Requests = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {requests.map((req) => (
-              <div key={req._id} className="bg-gray-800 rounded-lg shadow p-6">
-                <h2 className="text-xl font-semibold mb-2">{req.title}</h2>
-                <p className="text-gray-300 mb-2">{req.description}</p>
-                <p className="text-gray-400 mb-2">Location: {req.location}</p>
-                <p className="text-gray-400 mb-2">Status: {req.status === "accepted" ? "Accepted" : "Not Accepted"}</p>
-                <p className="text-gray-500 mb-2">Created at: {new Date(req.createdAt).toLocaleString()}</p>
-                <p className="text-sm text-gray-400">Author: {req.requester?.name || "N/A"}</p>
-              </div>
-            ))}
+  <Link to={`/requests/${req._id}`} key={req._id}>
+    <div className="bg-gray-800 rounded-lg shadow p-6 hover:bg-gray-700 transition">
+      <h2 className="text-xl font-semibold mb-2">{req.title}</h2>
+      <p className="text-gray-300 mb-2">{req.description}</p>
+      <p className="text-gray-400 mb-2">Location: {req.location}</p>
+      <p className="text-gray-400 mb-2">Status: {req.status === "accepted" ? "Accepted" : "Not Accepted"}</p>
+      <p className="text-gray-500 mb-2">Created at: {new Date(req.createdAt).toLocaleString()}</p>
+      <p className="text-sm text-gray-400">Author: {req.requester?.name || "N/A"}</p>
+    </div>
+  </Link>
+))}
           </div>
         )}
 

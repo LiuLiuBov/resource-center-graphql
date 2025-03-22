@@ -9,6 +9,7 @@ import Register from "./pages/Register";
 import Profile from "./pages/Profile";
 import Requests from "./pages/Requests";
 import CreateRequestPage from "./pages/CreateRequestPage";
+import RequestDetail from "./pages/RequestDetail";
 import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
@@ -21,6 +22,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/requests" element={<ProtectedRoute><Requests /></ProtectedRoute>} />
         <Route path="/requests/create" element={<ProtectedRoute><CreateRequestPage /></ProtectedRoute>} />
+        <Route path="/requests/:id" element={<ProtectedRoute><RequestDetail /></ProtectedRoute>} />
       </Routes></AuthProvider>
     </BrowserRouter>
   
