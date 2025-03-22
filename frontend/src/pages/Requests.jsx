@@ -18,7 +18,7 @@ const Requests = () => {
     setLoading(true);
     try {
       const response = await axios.get(
-        `http://localhost:8000/api/requests?page=${currentPage}&limit=${limit}&location=${locationFilter}&sort=${sortOrder}`,
+        `http://localhost:8000/api/requests?page=${currentPage}&limit=${limit}&location=${locationFilter}&sort=${sortOrder}&active=true`,
         {
           headers: {
             Authorization: `Bearer ${user?.token}`,
@@ -26,7 +26,9 @@ const Requests = () => {
         }
       );
       console.log("API Response:", response.data);
-      setRequests(Array.isArray(response.data.requests) ? response.data.requests : []);
+      setRequests(
+        Array.isArray(response.data.requests) ? response.data.requests : []
+      );
       setTotalPages(response.data.totalPages);
     } catch (err) {
       console.error("Error loading requests:", err);
@@ -35,19 +37,19 @@ const Requests = () => {
       setLoading(false);
     }
   };
+  
 
   useEffect(() => {
     if (user) {
       fetchRequests();
-  
+
       const intervalId = setInterval(() => {
         fetchRequests();
       }, 60000);
-  
+
       return () => clearInterval(intervalId);
     }
   }, [user, currentPage, locationFilter, sortOrder]);
-  
 
   const handleLocationChange = (e) => {
     setLocationFilter(e.target.value);
@@ -79,7 +81,9 @@ const Requests = () => {
 
       <div className="w-full bg-gray-800 py-4">
         <div className="max-w-7xl mx-auto px-4">
-          <label htmlFor="location" className="block text-gray-300 mb-2">Filter by Location:</label>
+          <label htmlFor="location" className="block text-gray-300 mb-2">
+            Filter by Location:
+          </label>
           <input
             type="text"
             id="location"
@@ -90,7 +94,9 @@ const Requests = () => {
           />
         </div>
         <div className="max-w-7xl mx-auto px-4 mt-4">
-          <label htmlFor="sort" className="block text-gray-300 mb-2">Sort by Date:</label>
+          <label htmlFor="sort" className="block text-gray-300 mb-2">
+            Sort by Date:
+          </label>
           <select
             id="sort"
             value={sortOrder}
@@ -111,17 +117,24 @@ const Requests = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {requests.map((req) => (
-  <Link to={`/requests/${req._id}`} key={req._id}>
-    <div className="bg-gray-800 rounded-lg shadow p-6 hover:bg-gray-700 transition">
-      <h2 className="text-xl font-semibold mb-2">{req.title}</h2>
-      <p className="text-gray-300 mb-2">{req.description}</p>
-      <p className="text-gray-400 mb-2">Location: {req.location}</p>
-      <p className="text-gray-400 mb-2">Status: {req.status === "accepted" ? "Accepted" : "Not Accepted"}</p>
-      <p className="text-gray-500 mb-2">Created at: {new Date(req.createdAt).toLocaleString()}</p>
-      <p className="text-sm text-gray-400">Author: {req.requester?.name || "N/A"}</p>
-    </div>
-  </Link>
-))}
+              <Link to={`/requests/${req._id}`} key={req._id}>
+                <div className="bg-gray-800 rounded-lg shadow p-6 hover:bg-gray-700 transition">
+                  <h2 className="text-xl font-semibold mb-2">{req.title}</h2>
+                  <p className="text-gray-300 mb-2">{req.description}</p>
+                  <p className="text-gray-400 mb-2">Location: {req.location}</p>
+                  <p className="text-gray-400 mb-2">
+                    Status:{" "}
+                    {req.status === "accepted" ? "Accepted" : "Not Accepted"}
+                  </p>
+                  <p className="text-gray-500 mb-2">
+                    Created at: {new Date(req.createdAt).toLocaleString()}
+                  </p>
+                  <p className="text-sm text-gray-400">
+                    Author: {req.requester?.name || "N/A"}
+                  </p>
+                </div>
+              </Link>
+            ))}
           </div>
         )}
 
@@ -129,7 +142,11 @@ const Requests = () => {
           <button
             disabled={currentPage === 1}
             onClick={handlePreviousPage}
-            className={`px-4 py-2 rounded-md ${currentPage === 1 ? "bg-gray-600" : "bg-blue-600 hover:bg-blue-700"}`}
+            className={`px-4 py-2 rounded-md ${
+              currentPage === 1
+                ? "bg-gray-600"
+                : "bg-blue-600 hover:bg-blue-700"
+            }`}
           >
             Previous
           </button>
@@ -139,19 +156,25 @@ const Requests = () => {
           <button
             disabled={currentPage === totalPages}
             onClick={handleNextPage}
-            className={`px-4 py-2 rounded-md ${currentPage === totalPages ? "bg-gray-600" : "bg-blue-600 hover:bg-blue-700"}`}
+            className={`px-4 py-2 rounded-md ${
+              currentPage === totalPages
+                ? "bg-gray-600"
+                : "bg-blue-600 hover:bg-blue-700"
+            }`}
           >
             Next
           </button>
         </div>
 
-        <Link
-          to="/requests/create"
-          className="fixed bottom-6 right-6 bg-blue-600 hover:bg-blue-700 text-white w-14 h-14 flex items-center justify-center text-3xl rounded-full shadow-lg transition-all"
-          title="Create New Request"
-        >
-          +
-        </Link>
+        {user?.role !== "admin" && (
+          <Link
+            to="/requests/create"
+            className="fixed bottom-6 right-6 bg-blue-600 hover:bg-blue-700 text-white w-14 h-14 flex items-center justify-center text-3xl rounded-full shadow-lg transition-all"
+            title="Create New Request"
+          >
+            +
+          </Link>
+        )}
       </div>
     </div>
   );
