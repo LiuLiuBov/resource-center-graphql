@@ -12,31 +12,38 @@ const App = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await axios.get("http://localhost:8000/api/analytics", {
+          headers: { Authorization: `Bearer ${user?.token}` },
+        });
+        setStats(response.data);
+        setLoading(false);
+      } catch (err) {
+        console.error("Error fetching stats:", err);
+      }
+    };
+
+    const fetchRequests = async () => {
+      try {
+        const url = user?.role === "admin" 
+          ? "http://localhost:8000/api/requests?location=&sort=desc" 
+          : `http://localhost:8000/api/requests?location=&sort=desc&requester=${user?._id}`;
+        
+        const response = await axios.get(url, {
+          headers: { Authorization: `Bearer ${user?.token}` },
+        });
+        setRequests(response.data.requests);
+        setLoading(false);
+      } catch (err) {
+        console.error("Error fetching requests:", err);
+      }
+    };
+    
+
     if (user?.role === "admin") {
-      const fetchStats = async () => {
-        try {
-          const response = await axios.get("http://localhost:8000/api/analytics", {
-            headers: { Authorization: `Bearer ${user?.token}` },
-          });
-          setStats(response.data);
-          setLoading(false);
-        } catch (err) {
-          console.error("Error fetching stats:", err);
-        }
-      };
       fetchStats();
     } else {
-      const fetchRequests = async () => {
-        try {
-          const response = await axios.get("http://localhost:8000/api/requests?location=&sort=desc", {
-            headers: { Authorization: `Bearer ${user?.token}` },
-          });
-          setRequests(response.data.requests);
-          setLoading(false);
-        } catch (err) {
-          console.error("Error fetching requests:", err);
-        }
-      };
       fetchRequests();
     }
   }, [user]);

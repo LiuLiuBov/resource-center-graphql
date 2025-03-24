@@ -100,7 +100,6 @@ const RequestDetail = () => {
         { headers: { Authorization: `Bearer ${user?.token}` } }
       );
       setRequest(response.data.request);
-      alert("Request accepted successfully!");
     } catch (err) {
       console.error("Error accepting request:", err);
       alert(err.response?.data?.message || "Error accepting request");
@@ -117,7 +116,6 @@ const RequestDetail = () => {
         { headers: { Authorization: `Bearer ${user?.token}` } }
       );
       setRequest(response.data.request);
-      alert("Request rejected successfully!");
     } catch (err) {
       console.error("Error rejecting request:", err);
       alert(err.response?.data?.message || "Error rejecting request");
