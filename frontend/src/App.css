@@ -40,3 +40,16 @@
 .read-the-docs {
   color: #888;
 }
+
+.bg-gray-800:hover {
+  background-color: #2d2d2d;
+  transition: background-color 0.2s ease;
+}
+
+.shadow {
+  box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.rounded-full {
+  border-radius: 50%;
+}

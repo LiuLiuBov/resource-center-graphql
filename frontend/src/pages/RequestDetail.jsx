@@ -92,6 +92,39 @@ const RequestDetail = () => {
     }
   };
 
+  const handleAcceptRequest = async () => {
+    try {
+      const response = await axios.patch(
+        `http://localhost:8000/api/requests/${id}/accept`,
+        {},
+        { headers: { Authorization: `Bearer ${user?.token}` } }
+      );
+      setRequest(response.data.request);
+      alert("Request accepted successfully!");
+    } catch (err) {
+      console.error("Error accepting request:", err);
+      alert(err.response?.data?.message || "Error accepting request");
+    }
+  };
+
+  const isVolunteer = request?.volunteers?.some(volunteer => String(volunteer._id) === String(user?._id));
+
+  const handleRejectRequest = async () => {
+    try {
+      const response = await axios.patch(
+        `http://localhost:8000/api/requests/${id}/reject`,
+        {},
+        { headers: { Authorization: `Bearer ${user?.token}` } }
+      );
+      setRequest(response.data.request);
+      alert("Request rejected successfully!");
+    } catch (err) {
+      console.error("Error rejecting request:", err);
+      alert(err.response?.data?.message || "Error rejecting request");
+    }
+  };
+  
+
   useEffect(() => {
     if (user) {
       fetchChatMessages();
@@ -260,6 +293,27 @@ const RequestDetail = () => {
                   </>
                 )}
 
+{!isCreator && !isAdmin && (
+  <>
+    {!isVolunteer ? (
+      <button
+        onClick={handleAcceptRequest}
+        className="mt-4 bg-green-600 hover:bg-green-700 px-4 py-2 rounded-md"
+      >
+        Accept Request
+      </button>
+    ) : (
+      <button
+        onClick={handleRejectRequest}
+        className="mt-4 bg-red-600 hover:bg-red-700 px-4 py-2 rounded-md"
+      >
+        Reject Request
+      </button>
+    )}
+  </>
+)}
+
+
                 {isAdmin && (
                   <button
                     onClick={handleToggleActivation}
@@ -280,6 +334,47 @@ const RequestDetail = () => {
         ) : (
           <p className="text-gray-600 dark:text-gray-300">Request not found.</p>
         )}
+
+{request && request.volunteers && request.volunteers.length > 0 ? (
+  <div className="mt-8">
+    <h2 className="text-2xl font-bold mb-4">Accepted Volunteers</h2>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {request.volunteers.map((volunteer, index) => (
+        <div
+          key={index}
+          className="bg-gray-800 p-6 rounded-lg shadow-lg hover:bg-gray-700 transition"
+        >
+          <div className="flex items-center space-x-4">
+            <div className="w-24 h-24 rounded-full overflow-hidden">
+              <img
+                src={`http://localhost:5173/${volunteer.profilePicture}`}
+                alt="Volunteer"
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div>
+              <h2 className="text-2xl font-semibold">{volunteer.name || "Unknown"}</h2>
+              <p className="text-sm text-gray-400">{volunteer.email || "No email provided"}</p>
+              <p
+                className={`mt-2 ${
+                  volunteer.role === "admin" ? "text-yellow-400" : "text-green-500"
+                }`}
+              >
+                {volunteer.role === "admin" ? "Administrator" : "User"}
+              </p>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+) : (
+  <p className="text-gray-400">No volunteers have accepted this request yet.</p>
+)}
+
+
+
+
 
         <div className="mt-8">
           <h2 className="text-2xl font-bold mb-4">Chat</h2>
@@ -335,7 +430,6 @@ const RequestDetail = () => {
             </button>
           </form>
         </div>
-
       </div>
     </div>
   );

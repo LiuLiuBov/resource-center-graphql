@@ -23,6 +23,7 @@ router.get("/", async (req, res) => {
     
     const requests = await Request.find(query)
       .populate("requester", "name email")
+      .populate("volunteers", "name email profilePicture")
       .sort({ createdAt: sortOrder })
       .skip((page - 1) * limit)
       .limit(Number(limit));
@@ -43,7 +44,7 @@ router.get("/", async (req, res) => {
 
 router.get("/:id", async (req, res) => {
   try {
-    const requestItem = await Request.findById(req.params.id).populate("requester", "name email");
+    const requestItem = await Request.findById(req.params.id).populate("requester", "name email").populate("volunteers", "name email profilePicture role");
     if (!requestItem) {
       return res.status(404).json({ message: "Request not found" });
     }
@@ -98,6 +99,44 @@ router.patch("/:id/toggle-activation", authMiddleware, async (req, res) => {
     request = await Request.findById(req.params.id).populate("requester", "name email");
 
     res.json({ message: `Запит ${request.isActive ? "активовано" : "деактивовано"}`, request });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.patch("/:id/accept", authMiddleware, async (req, res) => {
+  try {
+    const request = await Request.findById(req.params.id);
+    if (!request) return res.status(404).json({ message: "Request not found" });
+
+    if (String(request.requester) === String(req.user.id) || req.user.role === "admin") {
+      return res.status(403).json({ message: "Requester or Admin cannot accept the request" });
+    }
+
+    if (request.volunteers.includes(req.user.id)) {
+      return res.status(400).json({ message: "User has already accepted this request" });
+    }
+
+    request.volunteers.push(req.user.id);
+    await request.save();
+
+    res.json({ message: "Request accepted", request });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.patch("/:id/reject", authMiddleware, async (req, res) => {
+  try {
+    const request = await Request.findById(req.params.id);
+    if (!request) return res.status(404).json({ message: "Request not found" });
+
+    request.volunteers = request.volunteers.filter(
+      volunteerId => String(volunteerId) !== String(req.user.id)
+    );
+    await request.save();
+
+    res.json({ message: "Volunteer removed", request });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
