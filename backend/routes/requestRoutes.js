@@ -14,6 +14,10 @@ router.get("/", async (req, res) => {
     if (active === "true") {
       query = { ...query, isActive: true };
     }
+
+    if (active === "false") {
+      query = { ...query, isActive: false };
+    }
     
     const sortOrder = sort === "asc" ? 1 : -1;
     

@@ -8,6 +8,7 @@ const mongoose = require("mongoose");
 const authRoutes = require("./routes/authRoutes");
 const requestRoutes = require("./routes/requestRoutes");
 const chatRoutes = require("./routes/chatRoutes"); 
+const analyticsRoutes = require("./routes/analyticsRoutes");
 
 const app = express();
 app.use(express.json());
@@ -22,6 +23,7 @@ mongoose.connect(process.env.MONGO_URI, {})
 app.use("/api/auth", authRoutes);
 app.use("/api/requests", requestRoutes);
 app.use("/api/requests/:id/chat", chatRoutes);
+app.use("/api/analytics", analyticsRoutes);
 
 const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => console.log(`🚀 Сервер запущено на порту ${PORT}`));

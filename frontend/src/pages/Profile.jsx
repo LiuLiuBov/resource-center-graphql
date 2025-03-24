@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 
 const Profile = () => {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, logout } = useAuth();
   const navigate = useNavigate();
 
   const [editPhone, setEditPhone] = useState(false);
@@ -30,36 +30,41 @@ const Profile = () => {
       profilePicture: newProfilePicture,
     };
   
-    const res = await fetch("http://localhost:8000/api/auth/update-profile", {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${user?.token}`,
-      },
-      body: JSON.stringify(updatedData),
-    });
+    try {
+      const res = await fetch("http://localhost:8000/api/auth/update-profile", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${user?.token}`,
+        },
+        body: JSON.stringify(updatedData),
+      });
   
-    const data = await res.json();
+      const data = await res.json();
   
-    if (res.ok) {
-  
-      setEditPhone(false);
-      setEditLocation(false);
-      setEditBio(false);
-  
-      updateUser(updatedData); 
-    } else {
-      alert(data.message);
+      if (res.ok) {
+        setEditPhone(false);
+        setEditLocation(false);
+        setEditBio(false);
+        updateUser(updatedData);
+      } else {
+        if (data.message && data.message.includes("Невірний токен")) {
+          alert("Your session has expired. Please log in again.");
+          logout();
+        } else {
+          alert(data.message);
+        }
+      }
+    } catch (err) {
+      console.error("Error updating profile:", err);
     }
-  };  
+  }; 
   
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
-      {/* Navbar Above the Profile */}
       <Navbar />
 
-      {/* Profile Header */}
       <div className="w-full bg-gradient-to-r from-blue-600 to-blue-400 p-10 mt-16">
         <div className="max-w-7xl mx-auto text-center">
           <h1 className="text-4xl font-semibold">Welcome, {user?.name}!</h1>
@@ -67,12 +72,9 @@ const Profile = () => {
         </div>
       </div>
 
-      {/* Profile Content */}
       <div className="max-w-7xl mx-auto p-8">
-        {/* User Information Card */}
         <div className="bg-gray-800 rounded-lg shadow-lg p-6">
           <div className="flex items-center space-x-4">
-            {/* Profile Picture */}
             <div className="w-24 h-24 rounded-full overflow-hidden">
               <img
                 src={`http://localhost:5173/${user?.profilePicture}`}
@@ -81,7 +83,6 @@ const Profile = () => {
               />
             </div>
             <div>
-              {/* Name, Email, and Role */}
               <h2 className="text-2xl font-semibold">{user?.name}</h2>
               <p className="text-sm text-gray-400">{user?.email}</p>
               <p
@@ -94,9 +95,7 @@ const Profile = () => {
             </div>
           </div>
 
-          {/* Additional Profile Information */}
           <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-6">
-            {/* Phone Field */}
             <div className="flex flex-col">
               <label className="font-medium text-gray-400">Phone</label>
               {editPhone ? (
@@ -127,7 +126,6 @@ const Profile = () => {
               )}
             </div>
 
-            {/* Location Field */}
             <div className="flex flex-col">
               <label className="font-medium text-gray-400">Location</label>
               {editLocation ? (
@@ -159,7 +157,6 @@ const Profile = () => {
             </div>
           </div>
 
-          {/* Bio Field */}
           <div className="mt-6 col-span-2">
             <label className="font-medium text-gray-400">Bio</label>
             {editBio ? (

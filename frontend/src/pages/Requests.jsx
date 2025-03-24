@@ -6,67 +6,111 @@ import Navbar from "../components/Navbar";
 
 const Requests = () => {
   const { user } = useAuth();
-  const [requests, setRequests] = useState([]);
+
+  const [activeRequests, setActiveRequests] = useState([]);
+  const [activeCurrentPage, setActiveCurrentPage] = useState(1);
+  const [activeTotalPages, setActiveTotalPages] = useState(1);
+  const activeLimit = 2;
+
+  const [deactivatedRequests, setDeactivatedRequests] = useState([]);
+  const [deactivatedCurrentPage, setDeactivatedCurrentPage] = useState(1);
+  const [deactivatedTotalPages, setDeactivatedTotalPages] = useState(1);
+  const deactivatedLimit = 2;
+
   const [loading, setLoading] = useState(true);
   const [locationFilter, setLocationFilter] = useState("");
   const [sortOrder, setSortOrder] = useState("desc");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const limit = 4;
 
-  const fetchRequests = async () => {
+  const fetchActiveRequests = async () => {
     setLoading(true);
     try {
       const response = await axios.get(
-        `http://localhost:8000/api/requests?page=${currentPage}&limit=${limit}&location=${locationFilter}&sort=${sortOrder}&active=true`,
+        `http://localhost:8000/api/requests?page=${activeCurrentPage}&limit=${activeLimit}&location=${locationFilter}&sort=${sortOrder}&active=true`,
         {
           headers: {
             Authorization: `Bearer ${user?.token}`,
           },
         }
       );
-      console.log("API Response:", response.data);
-      setRequests(
+      console.log("Active API Response:", response.data);
+      setActiveRequests(
         Array.isArray(response.data.requests) ? response.data.requests : []
       );
-      setTotalPages(response.data.totalPages);
+      setActiveTotalPages(response.data.totalPages);
     } catch (err) {
-      console.error("Error loading requests:", err);
-      setRequests([]);
+      console.error("Error loading active requests:", err);
+      setActiveRequests([]);
     } finally {
       setLoading(false);
     }
   };
-  
+
+  const fetchDeactivatedRequests = async () => {
+    try {
+      const response = await axios.get(
+        `http://localhost:8000/api/requests?page=${deactivatedCurrentPage}&limit=${deactivatedLimit}&location=${locationFilter}&sort=${sortOrder}&active=false`,
+        {
+          headers: {
+            Authorization: `Bearer ${user?.token}`,
+          },
+        }
+      );
+      console.log("Deactivated API Response:", response.data);
+      setDeactivatedRequests(
+        Array.isArray(response.data.requests) ? response.data.requests : []
+      );
+      setDeactivatedTotalPages(response.data.totalPages);
+    } catch (err) {
+      console.error("Error loading deactivated requests:", err);
+      setDeactivatedRequests([]);
+    }
+  };
 
   useEffect(() => {
     if (user) {
-      fetchRequests();
-
-      const intervalId = setInterval(() => {
-        fetchRequests();
-      }, 60000);
-
+      fetchActiveRequests();
+      const intervalId = setInterval(fetchActiveRequests, 60000);
       return () => clearInterval(intervalId);
     }
-  }, [user, currentPage, locationFilter, sortOrder]);
+  }, [user, activeCurrentPage, locationFilter, sortOrder]);
+
+  useEffect(() => {
+    if (user && user.role === "admin") {
+      fetchDeactivatedRequests();
+      const intervalId = setInterval(fetchDeactivatedRequests, 60000);
+      return () => clearInterval(intervalId);
+    }
+  }, [user, deactivatedCurrentPage, locationFilter, sortOrder]);
 
   const handleLocationChange = (e) => {
     setLocationFilter(e.target.value);
-    setCurrentPage(1);
+    setActiveCurrentPage(1);
+    setDeactivatedCurrentPage(1);
   };
 
   const handleSortChange = (e) => {
     setSortOrder(e.target.value);
-    setCurrentPage(1);
+    setActiveCurrentPage(1);
+    setDeactivatedCurrentPage(1);
   };
 
-  const handlePreviousPage = () => {
-    if (currentPage > 1) setCurrentPage(currentPage - 1);
+  const handleActivePreviousPage = () => {
+    if (activeCurrentPage > 1) setActiveCurrentPage(activeCurrentPage - 1);
   };
 
-  const handleNextPage = () => {
-    if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+  const handleActiveNextPage = () => {
+    if (activeCurrentPage < activeTotalPages)
+      setActiveCurrentPage(activeCurrentPage + 1);
+  };
+
+  const handleDeactivatedPreviousPage = () => {
+    if (deactivatedCurrentPage > 1)
+      setDeactivatedCurrentPage(deactivatedCurrentPage - 1);
+  };
+
+  const handleDeactivatedNextPage = () => {
+    if (deactivatedCurrentPage < deactivatedTotalPages)
+      setDeactivatedCurrentPage(deactivatedCurrentPage + 1);
   };
 
   return (
@@ -75,7 +119,7 @@ const Requests = () => {
 
       <div className="w-full bg-gradient-to-r from-blue-600 to-blue-400 p-10 mt-16">
         <div className="max-w-7xl mx-auto text-center">
-          <h1 className="text-3xl font-bold">All Active Requests</h1>
+          <h1 className="text-3xl font-bold">Active Requests</h1>
         </div>
       </div>
 
@@ -112,59 +156,65 @@ const Requests = () => {
       <div className="container mx-auto px-4 py-20">
         {loading ? (
           <p className="text-gray-400">Loading...</p>
-        ) : requests.length === 0 ? (
-          <p className="text-gray-600 dark:text-gray-300">No requests found.</p>
+        ) : activeRequests.length === 0 ? (
+          <p className="text-gray-600 dark:text-gray-300">
+            No active requests found.
+          </p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {requests.map((req) => (
-              <Link to={`/requests/${req._id}`} key={req._id}>
-                <div className="bg-gray-800 rounded-lg shadow p-6 hover:bg-gray-700 transition">
-                  <h2 className="text-xl font-semibold mb-2">{req.title}</h2>
-                  <p className="text-gray-300 mb-2">{req.description}</p>
-                  <p className="text-gray-400 mb-2">Location: {req.location}</p>
-                  <p className="text-gray-400 mb-2">
-                    Status:{" "}
-                    {req.status === "accepted" ? "Accepted" : "Not Accepted"}
-                  </p>
-                  <p className="text-gray-500 mb-2">
-                    Created at: {new Date(req.createdAt).toLocaleString()}
-                  </p>
-                  <p className="text-sm text-gray-400">
-                    Author: {req.requester?.name || "N/A"}
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {activeRequests.map((req) => (
+                <Link to={`/requests/${req._id}`} key={req._id}>
+                  <div className="bg-gray-800 rounded-lg shadow p-6 hover:bg-gray-700 transition">
+                    <h2 className="text-xl font-semibold mb-2">{req.title}</h2>
+                    <p className="text-gray-300 mb-2">{req.description}</p>
+                    <p className="text-gray-400 mb-2">
+                      Location: {req.location}
+                    </p>
+                    <p className="text-gray-400 mb-2">
+                      Status:{" "}
+                      {req.status === "accepted" ? "Accepted" : "Not Accepted"}
+                    </p>
+                    <p className="text-gray-500 mb-2">
+                      Created at: {new Date(req.createdAt).toLocaleString()}
+                    </p>
+                    <p className="text-sm text-gray-400">
+                      Author: {req.requester?.name || "N/A"}
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
 
-        <div className="flex justify-center space-x-4 mt-8">
-          <button
-            disabled={currentPage === 1}
-            onClick={handlePreviousPage}
-            className={`px-4 py-2 rounded-md ${
-              currentPage === 1
-                ? "bg-gray-600"
-                : "bg-blue-600 hover:bg-blue-700"
-            }`}
-          >
-            Previous
-          </button>
-          <span className="px-4 py-2 bg-gray-800 rounded-md">
-            Page {currentPage} of {totalPages}
-          </span>
-          <button
-            disabled={currentPage === totalPages}
-            onClick={handleNextPage}
-            className={`px-4 py-2 rounded-md ${
-              currentPage === totalPages
-                ? "bg-gray-600"
-                : "bg-blue-600 hover:bg-blue-700"
-            }`}
-          >
-            Next
-          </button>
-        </div>
+            <div className="flex justify-center space-x-4 mt-8">
+              <button
+                disabled={activeCurrentPage === 1}
+                onClick={handleActivePreviousPage}
+                className={`px-4 py-2 rounded-md ${
+                  activeCurrentPage === 1
+                    ? "bg-gray-600"
+                    : "bg-blue-600 hover:bg-blue-700"
+                }`}
+              >
+                Previous
+              </button>
+              <span className="px-4 py-2 bg-gray-800 rounded-md">
+                Page {activeCurrentPage} of {activeTotalPages}
+              </span>
+              <button
+                disabled={activeCurrentPage === activeTotalPages}
+                onClick={handleActiveNextPage}
+                className={`px-4 py-2 rounded-md ${
+                  activeCurrentPage === activeTotalPages
+                    ? "bg-gray-600"
+                    : "bg-blue-600 hover:bg-blue-700"
+                }`}
+              >
+                Next
+              </button>
+            </div>
+          </>
+        )}
 
         {user?.role !== "admin" && (
           <Link
@@ -175,7 +225,87 @@ const Requests = () => {
             +
           </Link>
         )}
+
       </div>
+
+      {user?.role === "admin" && (
+          <div className="mt-16">
+            <div className="w-full bg-gradient-to-r from-blue-600 to-blue-400 p-10 mt-16">
+              <div className="max-w-7xl mx-auto text-center">
+                <h1 className="text-3xl font-bold">Deactivated Requests</h1>
+              </div>
+            </div>
+
+
+<div className="container mx-auto px-4 py-20">
+            {deactivatedRequests.length === 0 ? (
+              <p className="text-gray-600 dark:text-gray-300">
+                No deactivated requests found.
+              </p>
+            ) : (
+              <>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {deactivatedRequests.map((req) => (
+                    <Link to={`/requests/${req._id}`} key={req._id}>
+                      <div className="bg-gray-800 rounded-lg shadow p-6 hover:bg-gray-700 transition">
+                        <h2 className="text-xl font-semibold mb-2">
+                          {req.title}
+                        </h2>
+                        <p className="text-gray-300 mb-2">{req.description}</p>
+                        <p className="text-gray-400 mb-2">
+                          Location: {req.location}
+                        </p>
+                        <p className="text-gray-400 mb-2">
+                          Status:{" "}
+                          {req.status === "accepted"
+                            ? "Accepted"
+                            : "Not Accepted"}
+                        </p>
+                        <p className="text-gray-500 mb-2">
+                          Created at: {new Date(req.createdAt).toLocaleString()}
+                        </p>
+                        <p className="text-sm text-gray-400">
+                          Author: {req.requester?.name || "N/A"}
+                        </p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+
+                <div className="flex justify-center space-x-4 mt-8">
+                  <button
+                    disabled={deactivatedCurrentPage === 1}
+                    onClick={handleDeactivatedPreviousPage}
+                    className={`px-4 py-2 rounded-md ${
+                      deactivatedCurrentPage === 1
+                        ? "bg-gray-600"
+                        : "bg-blue-600 hover:bg-blue-700"
+                    }`}
+                  >
+                    Previous
+                  </button>
+                  <span className="px-4 py-2 bg-gray-800 rounded-md">
+                    Page {deactivatedCurrentPage} of {deactivatedTotalPages}
+                  </span>
+                  <button
+                    disabled={deactivatedCurrentPage === deactivatedTotalPages}
+                    onClick={handleDeactivatedNextPage}
+                    className={`px-4 py-2 rounded-md ${
+                      deactivatedCurrentPage === deactivatedTotalPages
+                        ? "bg-gray-600"
+                        : "bg-blue-600 hover:bg-blue-700"
+                    }`}
+                  >
+                    Next
+                  </button>
+                </div>
+              </>
+            )}
+            </div>
+          </div>
+        )}
+
     </div>
   );
 };

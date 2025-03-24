@@ -38,21 +38,17 @@ const RequestDetail = () => {
   const [request, setRequest] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Chat state
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
 
-  // Edit mode state
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editLocation, setEditLocation] = useState("");
 
-  // Determine if current user is an admin
   const isAdmin = user?.role === "admin";
 
-  // Fetch the individual request
   useEffect(() => {
     const fetchRequest = async () => {
       setLoading(true);
@@ -64,7 +60,6 @@ const RequestDetail = () => {
           }
         );
         setRequest(response.data);
-        // Initialize edit form values when data loads
         setEditTitle(response.data.title);
         setEditDescription(response.data.description);
         setEditLocation(response.data.location);
@@ -121,7 +116,6 @@ const RequestDetail = () => {
     }
   };
 
-  // Handle editing form submission
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -141,7 +135,6 @@ const RequestDetail = () => {
     }
   };
 
-  // Function to toggle request activation (for admins)
   const handleToggleActivation = async () => {
     try {
       const response = await axios.patch(
@@ -149,14 +142,12 @@ const RequestDetail = () => {
         {},
         { headers: { Authorization: `Bearer ${user?.token}` } }
       );
-      // Update request state with the updated object
       setRequest(response.data.request);
     } catch (err) {
       console.error("Error toggling activation:", err);
     }
   };
 
-  // Function to delete request (for requestor)
   const handleDeleteRequest = async () => {
     const confirmed = window.confirm(
       "Are you sure you want to delete this request?"
@@ -167,14 +158,12 @@ const RequestDetail = () => {
       await axios.delete(`http://localhost:8000/api/requests/${id}`, {
         headers: { Authorization: `Bearer ${user?.token}` },
       });
-      // Redirect to requests list after deletion
       navigate("/requests");
     } catch (err) {
       console.error("Error deleting request:", err);
     }
   };
 
-  // Determine if the current user is the creator of the request
   const isCreator =
     request &&
     request.requester &&
