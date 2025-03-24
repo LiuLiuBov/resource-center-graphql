@@ -19,7 +19,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/" element={<ProtectedRoute><App /></ProtectedRoute>} />
-        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        <Route path="/profile/:id" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/requests" element={<ProtectedRoute><Requests /></ProtectedRoute>} />
         <Route path="/requests/create" element={<ProtectedRoute><CreateRequestPage /></ProtectedRoute>} />
         <Route path="/requests/:id" element={<ProtectedRoute><RequestDetail /></ProtectedRoute>} />

@@ -150,4 +150,18 @@ router.patch("/update-profile", authMiddleware, async (req, res) => {
   }
 });
 
+router.get("/user/:id", authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select("-password");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.json({ user });
+  } catch (err) {
+    console.error("Error fetching user profile:", err);
+    res.status(500).json({ message: "Error fetching user profile" });
+  }
+});
+
+
 module.exports = router;
