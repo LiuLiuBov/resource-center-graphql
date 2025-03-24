@@ -106,7 +106,9 @@ const RequestDetail = () => {
     }
   };
 
-  const isVolunteer = request?.volunteers?.some(volunteer => String(volunteer._id) === String(user?._id));
+  const isVolunteer = request?.volunteers?.some(
+    (volunteer) => String(volunteer._id) === String(user?._id)
+  );
 
   const handleRejectRequest = async () => {
     try {
@@ -121,7 +123,6 @@ const RequestDetail = () => {
       alert(err.response?.data?.message || "Error rejecting request");
     }
   };
-  
 
   useEffect(() => {
     if (user) {
@@ -291,26 +292,25 @@ const RequestDetail = () => {
                   </>
                 )}
 
-{!isCreator && !isAdmin && (
-  <>
-    {!isVolunteer ? (
-      <button
-        onClick={handleAcceptRequest}
-        className="mt-4 bg-green-600 hover:bg-green-700 px-4 py-2 rounded-md"
-      >
-        Accept Request
-      </button>
-    ) : (
-      <button
-        onClick={handleRejectRequest}
-        className="mt-4 bg-red-600 hover:bg-red-700 px-4 py-2 rounded-md"
-      >
-        Reject Request
-      </button>
-    )}
-  </>
-)}
-
+                {!isCreator && !isAdmin && (
+                  <>
+                    {!isVolunteer ? (
+                      <button
+                        onClick={handleAcceptRequest}
+                        className="mt-4 bg-green-600 hover:bg-green-700 px-4 py-2 rounded-md"
+                      >
+                        Accept Request
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleRejectRequest}
+                        className="mt-4 bg-red-600 hover:bg-red-700 px-4 py-2 rounded-md"
+                      >
+                        Reject Request
+                      </button>
+                    )}
+                  </>
+                )}
 
                 {isAdmin && (
                   <button
@@ -351,7 +351,11 @@ const RequestDetail = () => {
               />
             </div>
             <div>
-              <h2 className="text-2xl font-semibold">{volunteer.name || "Unknown"}</h2>
+              <Link to={`/profile/${volunteer._id}`}>
+                <h2 className="text-2xl font-semibold text-blue-400 hover:underline">
+                  {volunteer.name || "Unknown"}
+                </h2>
+              </Link>
               <p className="text-sm text-gray-400">{volunteer.email || "No email provided"}</p>
               <p
                 className={`mt-2 ${
@@ -369,9 +373,6 @@ const RequestDetail = () => {
 ) : (
   <p className="text-gray-400">No volunteers have accepted this request yet.</p>
 )}
-
-
-
 
 
         <div className="mt-8">
