@@ -8,9 +8,6 @@ const Request = require("../../models/Request");
 module.exports = {
   Query: {
     async getRequests(_, args, { user }) {
-      // Depending on your business logic, you might allow public access to requests
-      // if (!user) throw new AuthenticationError("Немає доступу");
-
       const {
         page = 1,
         limit = 4,
@@ -19,32 +16,48 @@ module.exports = {
         active,
         requester,
       } = args;
-
+    
       const query = {
         ...(location && { location: { $regex: location, $options: "i" } }),
         ...(active === "true" && { isActive: true }),
         ...(active === "false" && { isActive: false }),
         ...(requester && { requester }),
       };
-
+    
       const sortOrder = sort === "asc" ? 1 : -1;
-
-      const requests = await Request.find(query)
-        .populate("requester", "name email")
-        .populate("volunteers", "name email profilePicture")
-        .sort({ createdAt: sortOrder })
-        .skip((page - 1) * limit)
-        .limit(limit);
-
-      const totalRequests = await Request.countDocuments(query);
-
-      return {
-        requests,
-        totalRequests,
-        currentPage: page,
-        totalPages: Math.ceil(totalRequests / limit),
-      };
+    
+      try {
+        const requests = await Request.find(query)
+          .populate("requester", "name email")
+          .populate("volunteers", "name email profilePicture")
+          .sort({ createdAt: sortOrder })
+          .skip((page - 1) * limit)
+          .limit(limit);
+    
+        // Format the response and map _id to id
+        const formattedRequests = requests.map((request) => {
+          const plainRequest = request.toObject(); // Convert Mongoose Document to plain object
+          return {
+            ...plainRequest,
+            id: plainRequest._id.toString(), // Convert ObjectId to string
+            createdAt: new Date(plainRequest.createdAt).toISOString(), // Ensure proper date formatting
+          };
+        });
+    
+        const totalRequests = await Request.countDocuments(query);
+    
+        return {
+          requests: formattedRequests,
+          totalRequests,
+          currentPage: page,
+          totalPages: Math.ceil(totalRequests / limit),
+        };
+      } catch (error) {
+        throw new Error(`Failed to fetch requests: ${error.message}`);
+      }
     },
+    
+    
 
     async getRequestById(_, { id }) {
       const requestItem = await Request.findById(id)
