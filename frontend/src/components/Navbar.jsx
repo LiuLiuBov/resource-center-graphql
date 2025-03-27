@@ -1,24 +1,73 @@
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const Navbar = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const toggleMenu = () => setMenuOpen((prev) => !prev);
 
   const isActive = (path) =>
     location.pathname === path
       ? "text-blue-700 dark:text-blue-500"
       : "text-gray-900 dark:text-white";
 
-  const toggleMenu = () => setMenuOpen((prev) => !prev);
+  const GET_USER_PROFILE = `
+    query GetUserById($id: ID!) {
+      getUserById(id: $id) {
+        id
+        name
+        email
+        role
+        phone
+        location
+        bio
+        profilePicture
+      }
+    }
+  `;
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!user) return;
+
+      try {
+        const res = await fetch("http://localhost:8000/graphql", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${user.token}`,
+          },
+          body: JSON.stringify({
+            query: GET_USER_PROFILE,
+            variables: { id: user?._id },
+          }),
+        });
+
+        const result = await res.json();
+        if (result.errors) {
+          console.error("GraphQL Error:", result.errors[0].message);
+          return;
+        }
+
+        const fetchedUser = result.data.getUserById;
+        if (fetchedUser) {
+          updateUser(fetchedUser);
+        }
+      } catch (err) {
+        console.error("Error fetching user profile:", err);
+      }
+    };
+
+    fetchUserProfile();
+  }, [user, updateUser]);
 
   return (
     <nav className="bg-white dark:bg-gray-900 fixed w-full z-20 top-0 start-0 border-b border-gray-200 dark:border-gray-600">
       <div className="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto p-4">
         
-        {/* Logo */}
         <Link to="/" className="flex items-center space-x-3">
           <img src="/volunteer.svg" className="h-8" alt="Logo" />
           <span className="self-center text-2xl font-semibold whitespace-nowrap dark:text-white">
@@ -26,7 +75,6 @@ const Navbar = () => {
           </span>
         </Link>
 
-        {/* Toggle Button for Mobile */}
         <button
           onClick={toggleMenu}
           data-collapse-toggle="navbar-sticky"
@@ -53,7 +101,6 @@ const Navbar = () => {
           </svg>
         </button>
 
-        {/* Navigation Links */}
         <div
           className={`${
             menuOpen ? "block" : "hidden"
@@ -84,9 +131,9 @@ const Navbar = () => {
             {user && (
               <li>
                 <Link
-                  to={`/profile/${user._id}`}
+                  to={`/profile/${user.id}`}
                   className={`block py-2 px-3 rounded-md hover:bg-gray-100 md:hover:bg-transparent ${isActive(
-                    `/profile/${user._id}`
+                    `/profile/${user.id}`
                   )} dark:hover:bg-gray-700`}
                 >
                   Profile
@@ -96,12 +143,14 @@ const Navbar = () => {
           </ul>
         </div>
 
-        {/* Authentication Buttons */}
         <div className="flex md:order-2 space-x-3">
           {user ? (
-            <button onClick={logout} className="text-white bg-red-600 hover:bg-red-700 px-4 py-2 rounded-md">
-                    Logout
-                  </button>
+            <button
+              onClick={logout}
+              className="text-white bg-red-600 hover:bg-red-700 px-4 py-2 rounded-md"
+            >
+              Logout
+            </button>
           ) : (
             <>
               <Link to="/login" className="text-white bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-md">

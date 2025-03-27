@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import Navbar from "../components/Navbar";
@@ -21,63 +20,124 @@ const Requests = () => {
   const [locationFilter, setLocationFilter] = useState("");
   const [sortOrder, setSortOrder] = useState("desc");
 
-  const fetchActiveRequests = async () => {
+  const GET_REQUESTS = `
+    query GetRequests(
+      $page: Int
+      $limit: Int
+      $location: String
+      $sort: String
+      $active: String
+    ) {
+      getRequests(
+        page: $page
+        limit: $limit
+        location: $location
+        sort: $sort
+        active: $active
+      ) {
+        requests {
+          id
+          title
+          description
+          location
+          status
+          createdAt
+          requester {
+            name
+          }
+        }
+        totalRequests
+        currentPage
+        totalPages
+      }
+    }
+  `;
+
+  const fetchRequests = async (
+    page,
+    limit,
+    activeStatus,
+    setRequestsFn,
+    setTotalPagesFn
+  ) => {
     setLoading(true);
     try {
-      const response = await axios.get(
-        `http://localhost:8000/api/requests?page=${activeCurrentPage}&limit=${activeLimit}&location=${locationFilter}&sort=${sortOrder}&active=true`,
-        {
-          headers: {
-            Authorization: `Bearer ${user?.token}`,
+      const res = await fetch("http://localhost:8000/graphql", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${user?.token}`,
+        },
+        body: JSON.stringify({
+          query: GET_REQUESTS,
+          variables: {
+            page,
+            limit,
+            location: locationFilter,
+            sort: sortOrder,
+            active: activeStatus,
           },
-        }
-      );
-      console.log("Active API Response:", response.data);
-      setActiveRequests(
-        Array.isArray(response.data.requests) ? response.data.requests : []
-      );
-      setActiveTotalPages(response.data.totalPages);
+        }),
+      });
+
+      const result = await res.json();
+      if (result.errors) {
+        console.error("GraphQL error:", result.errors[0].message);
+        setRequestsFn([]);
+        return;
+      }
+
+      const data = result.data.getRequests;
+      setRequestsFn(data.requests);
+      setTotalPagesFn(data.totalPages);
     } catch (err) {
-      console.error("Error loading active requests:", err);
-      setActiveRequests([]);
+      console.error("Error loading requests:", err);
+      setRequestsFn([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchDeactivatedRequests = async () => {
-    try {
-      const response = await axios.get(
-        `http://localhost:8000/api/requests?page=${deactivatedCurrentPage}&limit=${deactivatedLimit}&location=${locationFilter}&sort=${sortOrder}&active=false`,
-        {
-          headers: {
-            Authorization: `Bearer ${user?.token}`,
-          },
-        }
-      );
-      console.log("Deactivated API Response:", response.data);
-      setDeactivatedRequests(
-        Array.isArray(response.data.requests) ? response.data.requests : []
-      );
-      setDeactivatedTotalPages(response.data.totalPages);
-    } catch (err) {
-      console.error("Error loading deactivated requests:", err);
-      setDeactivatedRequests([]);
-    }
-  };
-
   useEffect(() => {
     if (user) {
-      fetchActiveRequests();
-      const intervalId = setInterval(fetchActiveRequests, 60000);
+      fetchRequests(
+        activeCurrentPage,
+        activeLimit,
+        "true",
+        setActiveRequests,
+        setActiveTotalPages
+      );
+      const intervalId = setInterval(() => {
+        fetchRequests(
+          activeCurrentPage,
+          activeLimit,
+          "true",
+          setActiveRequests,
+          setActiveTotalPages
+        );
+      }, 60000);
       return () => clearInterval(intervalId);
     }
   }, [user, activeCurrentPage, locationFilter, sortOrder]);
 
   useEffect(() => {
-    if (user && user.role === "admin") {
-      fetchDeactivatedRequests();
-      const intervalId = setInterval(fetchDeactivatedRequests, 60000);
+    if (user?.role === "admin") {
+      fetchRequests(
+        deactivatedCurrentPage,
+        deactivatedLimit,
+        "false",
+        setDeactivatedRequests,
+        setDeactivatedTotalPages
+      );
+      const intervalId = setInterval(() => {
+        fetchRequests(
+          deactivatedCurrentPage,
+          deactivatedLimit,
+          "false",
+          setDeactivatedRequests,
+          setDeactivatedTotalPages
+        );
+      }, 60000);
       return () => clearInterval(intervalId);
     }
   }, [user, deactivatedCurrentPage, locationFilter, sortOrder]);
@@ -95,22 +155,25 @@ const Requests = () => {
   };
 
   const handleActivePreviousPage = () => {
-    if (activeCurrentPage > 1) setActiveCurrentPage(activeCurrentPage - 1);
+    if (activeCurrentPage > 1) {
+      setActiveCurrentPage(activeCurrentPage - 1);
+    }
   };
-
   const handleActiveNextPage = () => {
-    if (activeCurrentPage < activeTotalPages)
+    if (activeCurrentPage < activeTotalPages) {
       setActiveCurrentPage(activeCurrentPage + 1);
+    }
   };
 
   const handleDeactivatedPreviousPage = () => {
-    if (deactivatedCurrentPage > 1)
+    if (deactivatedCurrentPage > 1) {
       setDeactivatedCurrentPage(deactivatedCurrentPage - 1);
+    }
   };
-
   const handleDeactivatedNextPage = () => {
-    if (deactivatedCurrentPage < deactivatedTotalPages)
+    if (deactivatedCurrentPage < deactivatedTotalPages) {
       setDeactivatedCurrentPage(deactivatedCurrentPage + 1);
+    }
   };
 
   return (
@@ -164,17 +227,12 @@ const Requests = () => {
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {activeRequests.map((req) => (
-                <Link to={`/requests/${req._id}`} key={req._id}>
+                <Link to={`/requests/${req.id}`} key={req.id}>
                   <div className="bg-gray-800 rounded-lg shadow p-6 hover:bg-gray-700 transition">
                     <h2 className="text-xl font-semibold mb-2">{req.title}</h2>
                     <p className="text-gray-300 mb-2">{req.description}</p>
-                    <p className="text-gray-400 mb-2">
-                      Location: {req.location}
-                    </p>
-                    <p className="text-gray-400 mb-2">
-                      Status:{" "}
-                      {req.status === "accepted" ? "Accepted" : "Not Accepted"}
-                    </p>
+                    <p className="text-gray-400 mb-2">Location: {req.location}</p>
+                    <p className="text-gray-400 mb-2">Status: {req.status}</p>
                     <p className="text-gray-500 mb-2">
                       Created at: {new Date(req.createdAt).toLocaleString()}
                     </p>
@@ -225,42 +283,37 @@ const Requests = () => {
             +
           </Link>
         )}
-
       </div>
 
       {user?.role === "admin" && (
-          <div className="mt-16">
-            <div className="w-full bg-gradient-to-r from-blue-600 to-blue-400 p-10 mt-16">
-              <div className="max-w-7xl mx-auto text-center">
-                <h1 className="text-3xl font-bold">Deactivated Requests</h1>
-              </div>
+        <div className="mt-16">
+          <div className="w-full bg-gradient-to-r from-blue-600 to-blue-400 p-10 mt-16">
+            <div className="max-w-7xl mx-auto text-center">
+              <h1 className="text-3xl font-bold">Deactivated Requests</h1>
             </div>
-
-
-<div className="container mx-auto px-4 py-20">
+          </div>
+          <div className="container mx-auto px-4 py-20">
             {deactivatedRequests.length === 0 ? (
               <p className="text-gray-600 dark:text-gray-300">
                 No deactivated requests found.
               </p>
             ) : (
               <>
-
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {deactivatedRequests.map((req) => (
-                    <Link to={`/requests/${req._id}`} key={req._id}>
+                    <Link to={`/requests/${req.id}`} key={req.id}>
                       <div className="bg-gray-800 rounded-lg shadow p-6 hover:bg-gray-700 transition">
                         <h2 className="text-xl font-semibold mb-2">
                           {req.title}
                         </h2>
-                        <p className="text-gray-300 mb-2">{req.description}</p>
+                        <p className="text-gray-300 mb-2">
+                          {req.description}
+                        </p>
                         <p className="text-gray-400 mb-2">
                           Location: {req.location}
                         </p>
                         <p className="text-gray-400 mb-2">
-                          Status:{" "}
-                          {req.status === "accepted"
-                            ? "Accepted"
-                            : "Not Accepted"}
+                          Status: {req.status}
                         </p>
                         <p className="text-gray-500 mb-2">
                           Created at: {new Date(req.createdAt).toLocaleString()}
@@ -302,10 +355,9 @@ const Requests = () => {
                 </div>
               </>
             )}
-            </div>
           </div>
-        )}
-
+        </div>
+      )}
     </div>
   );
 };

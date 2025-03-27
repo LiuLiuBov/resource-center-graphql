@@ -4,9 +4,9 @@ import { useNavigate, useParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
 
 const Profile = () => {
-  const { user, updateUser, logout } = useAuth();
+  const { user, updateUser } = useAuth();
   const navigate = useNavigate();
-  const { id } = useParams(); // Get the user ID from the URL
+  const { id } = useParams();
 
   const [profileUser, setProfileUser] = useState(null);
   const [editPhone, setEditPhone] = useState(false);
@@ -18,41 +18,77 @@ const Profile = () => {
   const [newBio, setNewBio] = useState("");
   const [newProfilePicture, setNewProfilePicture] = useState("");
 
+  const GET_USER_PROFILE = `
+    query GetUserById($id: ID!) {
+      getUserById(id: $id) {
+        id
+        name
+        email
+        role
+        phone
+        location
+        bio
+        profilePicture
+      }
+    }
+  `;
+
+  const UPDATE_PROFILE = `
+    mutation UpdateProfile($phone: String, $location: String, $bio: String, $profilePicture: String) {
+      updateProfile(phone: $phone, location: $location, bio: $bio, profilePicture: $profilePicture) {
+        id
+        name
+        email
+        role
+        phone
+        location
+        bio
+        profilePicture
+      }
+    }
+  `;
+
   useEffect(() => {
     const fetchUserProfile = async () => {
       try {
-        const res = await fetch(`http://localhost:8000/api/auth/user/${id}`, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${user?.token}`, // Include the token
-          },
-        });
-        const data = await res.json();
-        if (res.ok) {
-          setProfileUser(data.user);
-          setNewPhone(data.user.phone || "");
-          setNewLocation(data.user.location || "");
-          setNewBio(data.user.bio || "");
-          setNewProfilePicture(data.user.profilePicture || "");
-        } else {
-          console.error(data.message);
+        const userId = id || user?._id;
+
+        if (!userId) {
+          console.error("User ID is not available");
+          return;
         }
+
+        const res = await fetch("http://localhost:8000/graphql", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${user?.token}`,
+          },
+          body: JSON.stringify({
+            query: GET_USER_PROFILE,
+            variables: { id: userId },
+          }),
+        });
+
+        const result = await res.json();
+        if (result.errors) {
+          console.error("GraphQL error:", result.errors[0].message);
+          return;
+        }
+
+        const fetchedUser = result.data.getUserById;
+        setProfileUser(fetchedUser);
+        setNewPhone(fetchedUser.phone || "");
+        setNewLocation(fetchedUser.location || "");
+        setNewBio(fetchedUser.bio || "");
+        setNewProfilePicture(fetchedUser.profilePicture || "");
       } catch (err) {
         console.error("Error fetching user profile:", err);
       }
     };
-  
-    if (id && id !== user?._id) {
-      fetchUserProfile();
-    } else {
-      setProfileUser(user);
-      setNewPhone(user?.phone || "");
-      setNewLocation(user?.location || "");
-      setNewBio(user?.bio || "");
-      setNewProfilePicture(user?.profilePicture || "");
-    }
+
+    fetchUserProfile();
   }, [id, user]);
-  
 
   const handleSave = async () => {
     const updatedData = {
@@ -63,26 +99,30 @@ const Profile = () => {
     };
 
     try {
-      const res = await fetch("http://localhost:8000/api/auth/update-profile", {
-        method: "PATCH",
+      const res = await fetch("http://localhost:8000/graphql", {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${user?.token}`,
         },
-        body: JSON.stringify(updatedData),
+        body: JSON.stringify({
+          query: UPDATE_PROFILE,
+          variables: updatedData,
+        }),
       });
 
-      const data = await res.json();
-
-      if (res.ok) {
-        setEditPhone(false);
-        setEditLocation(false);
-        setEditBio(false);
-        updateUser(data.user);
-        setProfileUser(data.user);
-      } else {
-        alert(data.message);
+      const result = await res.json();
+      if (result.errors) {
+        alert(result.errors[0].message);
+        return;
       }
+
+      const updatedUser = result.data.updateProfile;
+      setEditPhone(false);
+      setEditLocation(false);
+      setEditBio(false);
+      updateUser(updatedUser);
+      setProfileUser(updatedUser);
     } catch (err) {
       console.error("Error updating profile:", err);
     }
@@ -91,7 +131,7 @@ const Profile = () => {
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       <Navbar />
-  
+
       <div className="max-w-7xl mx-auto p-8 mt-16">
         <div className="bg-gray-800 rounded-lg shadow-lg p-6">
           <div className="flex items-center space-x-4">
@@ -114,11 +154,11 @@ const Profile = () => {
               </p>
             </div>
           </div>
-  
+
           <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div className="flex flex-col">
               <label className="font-medium text-gray-400">Phone</label>
-              {profileUser?._id === user?._id && editPhone ? (
+              {editPhone ? (
                 <div className="flex items-center">
                   <input
                     type="text"
@@ -133,18 +173,16 @@ const Profile = () => {
               ) : (
                 <div className="flex items-center justify-between">
                   <p className="mt-2">{profileUser?.phone || "No phone number provided"}</p>
-                  {profileUser?._id === user?._id && (
-                    <button onClick={() => setEditPhone(true)} className="text-blue-500">
-                      Edit
-                    </button>
-                  )}
+                  <button onClick={() => setEditPhone(true)} className="text-blue-500">
+                    Edit
+                  </button>
                 </div>
               )}
             </div>
-  
+
             <div className="flex flex-col">
               <label className="font-medium text-gray-400">Location</label>
-              {profileUser?._id === user?._id && editLocation ? (
+              {editLocation ? (
                 <div className="flex items-center">
                   <input
                     type="text"
@@ -159,45 +197,33 @@ const Profile = () => {
               ) : (
                 <div className="flex items-center justify-between">
                   <p className="mt-2">{profileUser?.location || "No location provided"}</p>
-                  {profileUser?._id === user?._id && (
-                    <button onClick={() => setEditLocation(true)} className="text-blue-500">
-                      Edit
-                    </button>
-                  )}
+                  <button onClick={() => setEditLocation(true)} className="text-blue-500">
+                    Edit
+                  </button>
                 </div>
               )}
             </div>
           </div>
-  
+
           <div className="mt-6">
             <label className="font-medium text-gray-400">Bio</label>
-            {profileUser?._id === user?._id && editBio ? (
-              <div className="flex items-center">
-                <textarea
-                  value={newBio}
-                  onChange={(e) => setNewBio(e.target.value)}
-                  className="w-full p-2 rounded-md bg-gray-700 text-white h-24"
-                />
-                <button onClick={handleSave} className="ml-4 bg-green-600 text-white p-2 rounded-md">
-                  Save
-                </button>
-              </div>
+            {editBio ? (
+              <textarea
+                value={newBio}
+                onChange={(e) => setNewBio(e.target.value)}
+                className="w-full p-2 rounded-md bg-gray-700 text-white h-24"
+              />
             ) : (
-              <div className="flex items-center justify-between">
-                <p className="mt-2">{profileUser?.bio || "No bio provided"}</p>
-                {profileUser?._id === user?._id && (
-                  <button onClick={() => setEditBio(true)} className="text-blue-500">
-                    Edit
-                  </button>
-                )}
-              </div>
+              <p className="mt-2">{profileUser?.bio || "No bio provided"}</p>
             )}
+            <button onClick={() => setEditBio(true)} className="text-blue-500 mt-2">
+              Edit
+            </button>
           </div>
         </div>
       </div>
     </div>
   );
-  
 };
 
 export default Profile;

@@ -1,29 +1,55 @@
 require("dotenv").config();
 const express = require("express");
+const { ApolloServer } = require("apollo-server-express");
 const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
 const mongoose = require("mongoose");
 
-const authRoutes = require("./routes/authRoutes");
-const requestRoutes = require("./routes/requestRoutes");
-const chatRoutes = require("./routes/chatRoutes"); 
-const analyticsRoutes = require("./routes/analyticsRoutes");
+// Імпорт вашої схеми та резольверів
+const typeDefs = require("./graphql/typeDefs");
+const resolvers = require("./graphql/resolvers");
 
-const app = express();
-app.use(express.json());
-app.use(cors());
-app.use(helmet());
-app.use(morgan("dev"));
+// Функція, що отримує користувача з токена (аналог вашого authMiddleware)
+const { getUserFromToken } = require("./utils/auth");
 
-mongoose.connect(process.env.MONGO_URI, {})
-  .then(() => console.log("✅ MongoDB підключено"))
-  .catch(err => console.error("❌ Помилка підключення до бази:", err));
+async function startServer() {
+  const app = express();
 
-app.use("/api/auth", authRoutes);
-app.use("/api/requests", requestRoutes);
-app.use("/api/requests/:id/chat", chatRoutes);
-app.use("/api/analytics", analyticsRoutes);
+  app.use(express.json());
+  app.use(cors());
+  app.use(helmet());
+  app.use(morgan("dev"));
 
-const PORT = process.env.PORT || 8000;
-app.listen(PORT, () => console.log(`🚀 Сервер запущено на порту ${PORT}`));
+  // Підключення до MongoDB
+  mongoose
+    .connect(process.env.MONGO_URI, {})
+    .then(() => console.log("✅ MongoDB підключено"))
+    .catch((err) => console.error("❌ Помилка підключення до бази:", err));
+
+  // Створення екземпляра Apollo Server
+  const server = new ApolloServer({
+    typeDefs,
+    resolvers,
+    context: async ({ req }) => {
+      // Дістаємо токен з заголовка Authorization
+      // Формат: "Bearer <токен>"
+      const token = req.headers.authorization || "";
+      const user = await getUserFromToken(token.replace("Bearer ", ""));
+      // Повертаємо user в контекст — він буде доступний у всіх резольверах
+      return { user };
+    },
+  });
+
+  // Запускаємо ApolloServer перед тим, як підключити до Express
+  await server.start();
+  server.applyMiddleware({ app, path: "/graphql" });
+
+  const PORT = process.env.PORT || 8000;
+  app.listen(PORT, () => {
+    console.log(`🚀 GraphQL Server запущено на порту ${PORT}`);
+    console.log(`GraphQL endpoint: http://localhost:${PORT}/graphql`);
+  });
+}
+
+startServer();

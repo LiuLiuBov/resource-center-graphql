@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 
@@ -31,6 +30,20 @@ const ukraineRegions = [
     "Chernihiv Oblast",
 ];
 
+// GraphQL mutation to create a new request
+const CREATE_REQUEST = `
+  mutation CreateRequest($title: String!, $description: String!, $location: String!) {
+    createRequest(title: $title, description: $description, location: $location) {
+      id
+      title
+      description
+      location
+      requester {
+        name
+      }
+    }
+  }
+`;
 
 const CreateRequestPage = () => {
   const { user } = useAuth();
@@ -42,11 +55,25 @@ const CreateRequestPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:8000/api/requests', { title, description, location }, {
+      const response = await fetch('http://localhost:8000/graphql', {
+        method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           Authorization: `Bearer ${user?.token}`,
         },
+        body: JSON.stringify({
+          query: CREATE_REQUEST,
+          variables: { title, description, location },
+        }),
       });
+
+      const result = await response.json();
+      if (result.errors) {
+        console.error("GraphQL Error:", result.errors[0].message);
+        alert("Не вдалося створити запит: " + result.errors[0].message);
+        return;
+      }
+
       navigate('/requests');
     } catch (err) {
       console.error('Помилка створення запиту:', err);
@@ -60,7 +87,7 @@ const CreateRequestPage = () => {
 
       <div className="w-full bg-gradient-to-r from-blue-600 to-blue-400 p-10 mt-16">
         <div className="max-w-7xl mx-auto text-center">
-        <h1 className="text-3xl font-bold">Create Request</h1>
+          <h1 className="text-3xl font-bold">Create Request</h1>
         </div>
       </div>
 

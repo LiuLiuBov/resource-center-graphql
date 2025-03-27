@@ -8,7 +8,6 @@ const Register = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [phone, setPhone] = useState("");
-  const [profilePicture, setProfilePicture] = useState("");
   const [location, setLocation] = useState("");
   const [bio, setBio] = useState("");
   const navigate = useNavigate();
@@ -20,6 +19,21 @@ const Register = () => {
     }
   }, [user, navigate]);
 
+  // 1. Build a GraphQL mutation string:
+  const REGISTER_USER_MUTATION = `
+    mutation RegisterUser($name: String!, $email: String!, $password: String!, $confirmPassword: String!, $phone: String, $location: String, $bio: String) {
+      registerUser(
+        name: $name
+        email: $email
+        password: $password
+        confirmPassword: $confirmPassword
+        phone: $phone
+        location: $location
+        bio: $bio
+      )
+    }
+  `;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -28,26 +42,42 @@ const Register = () => {
       return;
     }
 
-    const res = await fetch("http://localhost:8000/api/auth/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name,
-        email,
-        password,
-        confirmPassword,
-        phone,
-        location,
-        bio,
-      }),
-    });
+    try {
+      // 2. Make a POST request to /graphql:
+      const res = await fetch("http://localhost:8000/graphql", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: REGISTER_USER_MUTATION,
+          variables: {
+            name,
+            email,
+            password,
+            confirmPassword,
+            phone,
+            location,
+            bio,
+          },
+        }),
+      });
 
-    const data = await res.json();
-    if (res.ok) {
-      alert("Registration successful! Please verify your email.");
-      navigate("/login");
-    } else {
-      alert(data.message);
+      const result = await res.json();
+
+      // 3. Handle GraphQL response:
+      if (result.errors) {
+        // If the GraphQL server returned errors (like validation errors)
+        alert(result.errors[0].message);
+      } else {
+        // The mutation succeeded
+        alert(result.data.registerUser); 
+        // The string returned by registerUser, e.g.:
+        // "Користувач успішно зареєстрований. Перевірте пошту для підтвердження."
+
+        navigate("/login");
+      }
+    } catch (error) {
+      console.error("GraphQL registration error:", error);
+      alert("Something went wrong during registration");
     }
   };
 
@@ -76,7 +106,7 @@ const Register = () => {
     "Cherkasy Oblast",
     "Chernivtsi Oblast",
     "Chernihiv Oblast",
-];
+  ];
 
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-[#080710]">
