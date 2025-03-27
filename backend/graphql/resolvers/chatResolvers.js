@@ -1,7 +1,5 @@
-// graphql/resolvers/chatResolvers.js
 const { AuthenticationError, UserInputError, ApolloError } = require("apollo-server-express");
 
-// Mongoose models
 const ChatMessage = require("../../models/chatMessage");
 
 module.exports = {
@@ -10,9 +8,24 @@ module.exports = {
       if (!user) throw new AuthenticationError("Немає доступу");
 
       const messages = await ChatMessage.find({ request: requestId })
-        .populate("author", "name email")
+        .populate("author", "_id name email")
         .sort({ createdAt: 1 });
-      return messages;
+
+      // Filter out messages with invalid or missing authors
+      const validMessages = messages
+        .filter((msg) => msg.author && msg.author._id)
+        .map((msg) => ({
+          ...msg.toObject(),
+          id: msg._id.toString(),
+          createdAt: msg.createdAt ? new Date(msg.createdAt).toISOString() : null,
+          author: {
+            id: msg.author._id.toString(),
+            name: msg.author.name || "N/A",
+            email: msg.author.email || "N/A",
+          },
+        }));
+
+      return validMessages;
     },
   },
 
@@ -32,8 +45,19 @@ module.exports = {
       await chatMessage.save();
 
       // Populate author for immediate return
-      await chatMessage.populate("author", "name email");
-      return chatMessage;
+      await chatMessage.populate("author", "_id name email");
+
+      // Return the formatted message with the correct author structure
+      return {
+        ...chatMessage.toObject(),
+        id: chatMessage._id.toString(),
+        createdAt: chatMessage.createdAt ? new Date(chatMessage.createdAt).toISOString() : null,
+        author: {
+          id: chatMessage.author._id.toString(),
+          name: chatMessage.author.name || "N/A",
+          email: chatMessage.author.email || "N/A",
+        },
+      };
     },
   },
 };

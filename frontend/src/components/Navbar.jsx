@@ -48,7 +48,7 @@ const Navbar = () => {
 
         const result = await res.json();
         if (result.errors) {
-          console.error("GraphQL Error:", result.errors[0].message);
+          //console.error("GraphQL Error:", result.errors[0].message);
           return;
         }
 
@@ -57,7 +57,7 @@ const Navbar = () => {
           updateUser(fetchedUser);
         }
       } catch (err) {
-        console.error("Error fetching user profile:", err);
+        //console.error("Error fetching user profile:", err);
       }
     };
 

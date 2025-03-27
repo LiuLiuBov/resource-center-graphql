@@ -1,14 +1,11 @@
-// graphql/resolvers/authResolvers.js
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 const { AuthenticationError, ApolloError, UserInputError } = require("apollo-server-express");
 
-// Mongoose models
 const User = require("../../models/User");
 
-// Configure nodemailer
 const transporter = nodemailer.createTransport({
   service: "Gmail",
   host: "smtp.gmail.com",
@@ -48,7 +45,6 @@ module.exports = {
         throw new UserInputError("Цей email вже зареєстрований");
       }
 
-      // Random icon selection
       const icons = ["user_icon2.jpeg", "user_icon4.jpeg"];
       const randomIcon = icons[Math.floor(Math.random() * icons.length)];
 
@@ -67,7 +63,6 @@ module.exports = {
 
       await newUser.save();
 
-      // Email verification link
       const verificationLink = `http://localhost:8000/api/auth/verify-email?token=${newUser.verificationToken}`;
 
       await transporter.sendMail({

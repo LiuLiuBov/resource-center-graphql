@@ -1,9 +1,7 @@
-// graphql/resolvers/analyticsResolvers.js
 const { AuthenticationError } = require("apollo-server-express");
 const User = require("../../models/User");
 const Request = require("../../models/Request");
 
-// Helper for checking admin role
 function checkAdmin(user) {
   if (!user || user.role !== "admin") {
     throw new AuthenticationError("Доступ заборонено. Необхідні права адміністратора.");

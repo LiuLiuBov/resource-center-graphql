@@ -60,14 +60,49 @@ module.exports = {
     
 
     async getRequestById(_, { id }) {
-      const requestItem = await Request.findById(id)
-        .populate("requester", "name email")
-        .populate("volunteers", "name email profilePicture role");
-      if (!requestItem) {
-        throw new ApolloError("Request not found", "REQUEST_NOT_FOUND");
+      try {
+        const requestItem = await Request.findById(id)
+          .populate("requester", "_id name email role")
+          .populate("volunteers", "_id name email profilePicture role");
+    
+        if (!requestItem) {
+          throw new ApolloError("Request not found", "REQUEST_NOT_FOUND");
+        }
+    
+        const plainRequest = requestItem.toObject();
+    
+        // Safely handle volunteers and filter out any invalid or null entries
+        const validVolunteers = plainRequest.volunteers
+          ? plainRequest.volunteers
+              .filter((volunteer) => volunteer && volunteer._id) // Filter out invalid volunteers
+              .map((volunteer) => ({
+                id: volunteer._id.toString(),
+                name: volunteer.name || "N/A",
+                email: volunteer.email || "N/A",
+                role: volunteer.role || "user",
+                profilePicture: volunteer.profilePicture || "",
+              }))
+          : [];
+    
+        return {
+          ...plainRequest,
+          id: plainRequest._id.toString(),
+          createdAt: plainRequest.createdAt ? new Date(plainRequest.createdAt).toISOString() : null,
+          requester: plainRequest.requester ? {
+            id: plainRequest.requester._id.toString(),
+            name: plainRequest.requester.name,
+            email: plainRequest.requester.email,
+            role: plainRequest.requester.role,
+          } : null,
+          volunteers: validVolunteers, // Use filtered valid volunteers
+        };
+      } catch (error) {
+        throw new Error(`Failed to fetch request: ${error.message}`);
       }
-      return requestItem;
-    },
+    }
+    
+    
+    
   },
 
   Mutation: {
@@ -84,13 +119,17 @@ module.exports = {
     
         await request.save();
     
-        const populatedRequest = await Request.findById(request.id).populate("requester", "name email role");
+        const populatedRequest = await Request.findById(request.id).populate(
+          "requester",
+          "name email role"
+        );
     
         return populatedRequest;
       } catch (err) {
         throw new ApolloError("Помилка створення запиту: " + err.message);
       }
-    },    
+    },
+      
 
     async updateRequest(_, { id, title, description, location }, { user }) {
       if (!user) throw new AuthenticationError("Немає доступу");

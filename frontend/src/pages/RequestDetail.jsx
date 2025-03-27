@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import Navbar from "../components/Navbar";
@@ -35,6 +34,7 @@ const RequestDetail = () => {
   const { id } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
+
   const [request, setRequest] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -49,20 +49,145 @@ const RequestDetail = () => {
 
   const isAdmin = user?.role === "admin";
 
+  // ---------------- GRAPHQL QUERIES & MUTATIONS ----------------
+  const GET_REQUEST_BY_ID = `
+    query GetRequestById($id: ID!) {
+      getRequestById(id: $id) {
+        id
+        title
+        description
+        location
+        status
+        createdAt
+        isActive
+        requester {
+          id
+          name
+          email
+          role
+        }
+        volunteers {
+          id
+          name
+          email
+          role
+          profilePicture
+        }
+      }
+    }
+  `;
+
+  const GET_CHAT_MESSAGES = `
+    query GetChatMessages($requestId: ID!) {
+      getChatMessages(requestId: $requestId) {
+        id
+        message
+        createdAt
+        author {
+          id
+          name
+          email
+        }
+      }
+    }
+  `;
+
+  const ACCEPT_REQUEST = `
+    mutation AcceptRequest($id: ID!) {
+      acceptRequest(id: $id) {
+        id
+        status
+        volunteers {
+          id
+          name
+          email
+          role
+          profilePicture
+        }
+      }
+    }
+  `;
+
+  const REJECT_REQUEST = `
+    mutation RejectRequest($id: ID!) {
+      rejectRequest(id: $id) {
+        id
+        volunteers {
+          id
+          name
+          email
+          role
+          profilePicture
+        }
+      }
+    }
+  `;
+
+  const TOGGLE_ACTIVATION = `
+    mutation ToggleActivation($id: ID!) {
+      toggleActivation(id: $id) {
+        id
+        isActive
+      }
+    }
+  `;
+
+  const DELETE_REQUEST = `
+    mutation DeleteRequest($id: ID!) {
+      deleteRequest(id: $id)
+    }
+  `;
+
+  const UPDATE_REQUEST = `
+    mutation UpdateRequest($id: ID!, $title: String, $description: String, $location: String) {
+      updateRequest(id: $id, title: $title, description: $description, location: $location) {
+        id
+        title
+        description
+        location
+        status
+        createdAt
+        isActive
+      }
+    }
+  `;
+
+  const CREATE_CHAT_MESSAGE = `
+    mutation CreateChatMessage($requestId: ID!, $message: String!) {
+      createChatMessage(requestId: $requestId, message: $message) {
+        id
+      }
+    }
+  `;
+
+  // ---------------- HELPER FUNCTIONS FOR GRAPHQL ----------------
+  const graphQLFetch = async (query, variables = {}) => {
+    const res = await fetch("http://localhost:8000/graphql", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${user?.token}`,
+      },
+      body: JSON.stringify({ query, variables }),
+    });
+    const result = await res.json();
+    if (result.errors) {
+      throw new Error(result.errors[0].message);
+    }
+    return result.data;
+  };
+
+  // ---------------- FETCH REQUEST DETAILS ----------------
   useEffect(() => {
     const fetchRequest = async () => {
       setLoading(true);
       try {
-        const response = await axios.get(
-          `http://localhost:8000/api/requests/${id}`,
-          {
-            headers: { Authorization: `Bearer ${user?.token}` },
-          }
-        );
-        setRequest(response.data);
-        setEditTitle(response.data.title);
-        setEditDescription(response.data.description);
-        setEditLocation(response.data.location);
+        const data = await graphQLFetch(GET_REQUEST_BY_ID, { id });
+        const reqData = data?.getRequestById;
+        setRequest(reqData);
+        setEditTitle(reqData.title);
+        setEditDescription(reqData.description);
+        setEditLocation(reqData.location);
       } catch (err) {
         console.error("Error loading request:", err);
       } finally {
@@ -70,57 +195,20 @@ const RequestDetail = () => {
       }
     };
 
-    if (user) {
-      fetchRequest();
-    }
+    if (user) fetchRequest();
+    // eslint-disable-next-line
   }, [id, user]);
 
+  // ---------------- FETCH CHAT MESSAGES ----------------
   const fetchChatMessages = async () => {
     setChatLoading(true);
     try {
-      const response = await axios.get(
-        `http://localhost:8000/api/requests/${id}/chat`,
-        {
-          headers: { Authorization: `Bearer ${user?.token}` },
-        }
-      );
-      setMessages(response.data.messages);
+      const data = await graphQLFetch(GET_CHAT_MESSAGES, { requestId: id });
+      setMessages(data.getChatMessages);
     } catch (err) {
       console.error("Error loading chat messages:", err);
     } finally {
       setChatLoading(false);
-    }
-  };
-
-  const handleAcceptRequest = async () => {
-    try {
-      const response = await axios.patch(
-        `http://localhost:8000/api/requests/${id}/accept`,
-        {},
-        { headers: { Authorization: `Bearer ${user?.token}` } }
-      );
-      setRequest(response.data.request);
-    } catch (err) {
-      console.error("Error accepting request:", err);
-      alert(err.response?.data?.message || "Error accepting request");
-    }
-  };
-
-  const isVolunteer = request?.volunteers?.some(
-    (volunteer) => String(volunteer._id) === String(user?._id)
-  );
-
-  const handleRejectRequest = async () => {
-    try {
-      const response = await axios.patch(
-        `http://localhost:8000/api/requests/${id}/reject`,
-        {},
-        { headers: { Authorization: `Bearer ${user?.token}` } }
-      );
-      setRequest(response.data.request);
-    } catch (err) {
-      console.error("Error rejecting request:", err);
-      alert(err.response?.data?.message || "Error rejecting request");
     }
   };
 
@@ -132,15 +220,44 @@ const RequestDetail = () => {
     }
   }, [user, id]);
 
+  // ---------------- HANDLE ACCEPT REQUEST ----------------
+  const handleAcceptRequest = async () => {
+    try {
+      const data = await graphQLFetch(ACCEPT_REQUEST, { id });
+      setRequest((prev) => ({
+        ...prev,
+        status: data.acceptRequest.status,
+        volunteers: data.acceptRequest.volunteers,
+      }));
+    } catch (err) {
+      console.error("Error accepting request:", err);
+      alert(err.message || "Error accepting request");
+    }
+  };
+
+  // ---------------- HANDLE REJECT REQUEST ----------------
+  const handleRejectRequest = async () => {
+    try {
+      const data = await graphQLFetch(REJECT_REQUEST, { id });
+      setRequest((prev) => ({
+        ...prev,
+        volunteers: data.rejectRequest.volunteers,
+      }));
+    } catch (err) {
+      console.error("Error rejecting request:", err);
+      alert(err.message || "Error rejecting request");
+    }
+  };
+
+  // ---------------- HANDLE SEND MESSAGE ----------------
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim()) return;
     try {
-      await axios.post(
-        `http://localhost:8000/api/requests/${id}/chat`,
-        { message: newMessage },
-        { headers: { Authorization: `Bearer ${user?.token}` } }
-      );
+      await graphQLFetch(CREATE_CHAT_MESSAGE, {
+        requestId: id,
+        message: newMessage,
+      });
       setNewMessage("");
       fetchChatMessages();
     } catch (err) {
@@ -148,58 +265,60 @@ const RequestDetail = () => {
     }
   };
 
+  // ---------------- HANDLE UPDATE REQUEST ----------------
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.put(
-        `http://localhost:8000/api/requests/${id}`,
-        {
-          title: editTitle,
-          description: editDescription,
-          location: editLocation,
-        },
-        { headers: { Authorization: `Bearer ${user?.token}` } }
-      );
-      setRequest(response.data);
+      const data = await graphQLFetch(UPDATE_REQUEST, {
+        id,
+        title: editTitle,
+        description: editDescription,
+        location: editLocation,
+      });
+      setRequest((prev) => ({
+        ...prev,
+        ...data.updateRequest,
+      }));
       setEditing(false);
     } catch (err) {
       console.error("Error updating request:", err);
     }
   };
 
+  // ---------------- HANDLE TOGGLE ACTIVATION ----------------
   const handleToggleActivation = async () => {
     try {
-      const response = await axios.patch(
-        `http://localhost:8000/api/requests/${id}/toggle-activation`,
-        {},
-        { headers: { Authorization: `Bearer ${user?.token}` } }
-      );
-      setRequest(response.data.request);
+      const data = await graphQLFetch(TOGGLE_ACTIVATION, { id });
+      setRequest((prev) => ({
+        ...prev,
+        isActive: data.toggleActivation.isActive,
+      }));
     } catch (err) {
       console.error("Error toggling activation:", err);
     }
   };
 
+  // ---------------- HANDLE DELETE REQUEST ----------------
   const handleDeleteRequest = async () => {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this request?"
-    );
+    const confirmed = window.confirm("Are you sure you want to delete this request?");
     if (!confirmed) return;
-
     try {
-      await axios.delete(`http://localhost:8000/api/requests/${id}`, {
-        headers: { Authorization: `Bearer ${user?.token}` },
-      });
+      await graphQLFetch(DELETE_REQUEST, { id });
       navigate("/requests");
     } catch (err) {
       console.error("Error deleting request:", err);
     }
   };
 
+  // ----------------- DERIVED FIELDS & RENDER LOGIC -----------------
   const isCreator =
     request &&
     request.requester &&
-    String(request.requester._id) === String(user?.id || user?._id);
+    String(request.requester.id) === String(user?.id || user?._id);
+
+  const isVolunteer = request?.volunteers?.some(
+    (vol) => String(vol.id) === String(user?._id || user?.id)
+  );
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -266,11 +385,13 @@ const RequestDetail = () => {
                 <p className="mb-2">{request.description}</p>
                 <p className="mb-2">Location: {request.location}</p>
                 <p className="mb-2">
-                  Status:{" "}
-                  {request.status === "accepted" ? "Accepted" : "Not Accepted"}
+                  Status: {request.status === "accepted" ? "Accepted" : "Not Accepted"}
                 </p>
                 <p className="mb-2">
-                  Created at: {new Date(request.createdAt).toLocaleString()}
+                  Created at:{" "}
+                  {request.createdAt
+                    ? new Date(request.createdAt).toLocaleString()
+                    : "N/A"}
                 </p>
                 <p className="mb-2">
                   Author: {request.requester?.name || "N/A"}
@@ -321,9 +442,7 @@ const RequestDetail = () => {
                         : "bg-green-600 hover:bg-green-700"
                     }`}
                   >
-                    {request.isActive
-                      ? "Deactivate Request"
-                      : "Activate Request"}
+                    {request.isActive ? "Deactivate Request" : "Activate Request"}
                   </button>
                 )}
               </>
@@ -333,48 +452,53 @@ const RequestDetail = () => {
           <p className="text-gray-600 dark:text-gray-300">Request not found.</p>
         )}
 
-{request && request.volunteers && request.volunteers.length > 0 ? (
-  <div className="mt-8">
-    <h2 className="text-2xl font-bold mb-4">Accepted Volunteers</h2>
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {request.volunteers.map((volunteer, index) => (
-        <div
-          key={index}
-          className="bg-gray-800 p-6 rounded-lg shadow-lg hover:bg-gray-700 transition"
-        >
-          <div className="flex items-center space-x-4">
-            <div className="w-24 h-24 rounded-full overflow-hidden">
-              <img
-                src={`http://localhost:5173/${volunteer.profilePicture}`}
-                alt="Volunteer"
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <div>
-              <Link to={`/profile/${volunteer._id}`}>
-                <h2 className="text-2xl font-semibold text-blue-400 hover:underline">
-                  {volunteer.name || "Unknown"}
-                </h2>
-              </Link>
-              <p className="text-sm text-gray-400">{volunteer.email || "No email provided"}</p>
-              <p
-                className={`mt-2 ${
-                  volunteer.role === "admin" ? "text-yellow-400" : "text-green-500"
-                }`}
-              >
-                {volunteer.role === "admin" ? "Administrator" : "User"}
-              </p>
+        {/* Accepted Volunteers */}
+        {request && request.volunteers && request.volunteers.length > 0 ? (
+          <div className="mt-8">
+            <h2 className="text-2xl font-bold mb-4">Accepted Volunteers</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {request.volunteers.map((volunteer, index) => (
+                <div
+                  key={index}
+                  className="bg-gray-800 p-6 rounded-lg shadow-lg hover:bg-gray-700 transition"
+                >
+                  <div className="flex items-center space-x-4">
+                    <div className="w-24 h-24 rounded-full overflow-hidden">
+                      <img
+                        src={`http://localhost:5173/${volunteer.profilePicture}`}
+                        alt="Volunteer"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div>
+                      <Link to={`/profile/${volunteer.id}`}>
+                        <h2 className="text-2xl font-semibold text-blue-400 hover:underline">
+                          {volunteer.name || "Unknown"}
+                        </h2>
+                      </Link>
+                      <p className="text-sm text-gray-400">
+                        {volunteer.email || "No email provided"}
+                      </p>
+                      <p
+                        className={`mt-2 ${
+                          volunteer.role === "admin"
+                            ? "text-yellow-400"
+                            : "text-green-500"
+                        }`}
+                      >
+                        {volunteer.role === "admin" ? "Administrator" : "User"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
-      ))}
-    </div>
-  </div>
-) : (
-  <p className="text-gray-400">No volunteers have accepted this request yet.</p>
-)}
+        ) : (
+          <p className="text-gray-400">No volunteers have accepted this request yet.</p>
+        )}
 
-
+        {/* Chat Section */}
         <div className="mt-8">
           <h2 className="text-2xl font-bold mb-4">Chat</h2>
           <div className="bg-gray-700 p-4 rounded h-64 overflow-y-auto">
@@ -385,14 +509,14 @@ const RequestDetail = () => {
             ) : (
               messages.map((msg) => (
                 <div
-                  key={msg._id}
+                  key={msg.id}
                   className="mb-4 border-b border-gray-600 pb-2"
                 >
                   <p className="text-sm text-gray-400">
+                    {/* Check if message author is the request's author */}
                     {request &&
                     request.requester &&
-                    String(msg.author?._id) ===
-                      String(request.requester._id) ? (
+                    String(msg.author?.id) === String(request.requester.id) ? (
                       <>
                         <strong className="bg-yellow-300 text-gray-900 px-1">
                           {msg.author?.name || "Unknown"}
