@@ -13,7 +13,6 @@ const ukraineRegions = [
     "Zaporizhzhia Oblast",
     "Ivano-Frankivsk Oblast",
     "Kyiv Oblast",
-    "Kirovohrad Oblast",
     "Luhansk Oblast",
     "Lviv Oblast",
     "Mykolaiv Oblast",
@@ -30,7 +29,6 @@ const ukraineRegions = [
     "Chernihiv Oblast",
 ];
 
-// GraphQL mutation to create a new request
 const CREATE_REQUEST = `
   mutation CreateRequest($title: String!, $description: String!, $location: String!) {
     createRequest(title: $title, description: $description, location: $location) {

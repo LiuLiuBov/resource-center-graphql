@@ -19,7 +19,6 @@ const Register = () => {
     }
   }, [user, navigate]);
 
-  // 1. Build a GraphQL mutation string:
   const REGISTER_USER_MUTATION = `
     mutation RegisterUser($name: String!, $email: String!, $password: String!, $confirmPassword: String!, $phone: String, $location: String, $bio: String) {
       registerUser(
@@ -43,7 +42,6 @@ const Register = () => {
     }
 
     try {
-      // 2. Make a POST request to /graphql:
       const res = await fetch("http://localhost:8000/graphql", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -63,15 +61,10 @@ const Register = () => {
 
       const result = await res.json();
 
-      // 3. Handle GraphQL response:
       if (result.errors) {
-        // If the GraphQL server returned errors (like validation errors)
         alert(result.errors[0].message);
       } else {
-        // The mutation succeeded
         alert(result.data.registerUser); 
-        // The string returned by registerUser, e.g.:
-        // "Користувач успішно зареєстрований. Перевірте пошту для підтвердження."
 
         navigate("/login");
       }
@@ -91,7 +84,6 @@ const Register = () => {
     "Zaporizhzhia Oblast",
     "Ivano-Frankivsk Oblast",
     "Kyiv Oblast",
-    "Kirovohrad Oblast",
     "Luhansk Oblast",
     "Lviv Oblast",
     "Mykolaiv Oblast",

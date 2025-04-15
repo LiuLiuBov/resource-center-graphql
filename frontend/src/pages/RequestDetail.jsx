@@ -49,7 +49,6 @@ const RequestDetail = () => {
 
   const isAdmin = user?.role === "admin";
 
-  // ---------------- GRAPHQL QUERIES & MUTATIONS ----------------
   const GET_REQUEST_BY_ID = `
     query GetRequestById($id: ID!) {
       getRequestById(id: $id) {
@@ -160,7 +159,6 @@ const RequestDetail = () => {
     }
   `;
 
-  // ---------------- HELPER FUNCTIONS FOR GRAPHQL ----------------
   const graphQLFetch = async (query, variables = {}) => {
     const res = await fetch("http://localhost:8000/graphql", {
       method: "POST",
@@ -177,7 +175,6 @@ const RequestDetail = () => {
     return result.data;
   };
 
-  // ---------------- FETCH REQUEST DETAILS ----------------
   useEffect(() => {
     const fetchRequest = async () => {
       setLoading(true);
@@ -196,10 +193,8 @@ const RequestDetail = () => {
     };
 
     if (user) fetchRequest();
-    // eslint-disable-next-line
   }, [id, user]);
 
-  // ---------------- FETCH CHAT MESSAGES ----------------
   const fetchChatMessages = async () => {
     setChatLoading(true);
     try {
@@ -220,7 +215,6 @@ const RequestDetail = () => {
     }
   }, [user, id]);
 
-  // ---------------- HANDLE ACCEPT REQUEST ----------------
   const handleAcceptRequest = async () => {
     try {
       const data = await graphQLFetch(ACCEPT_REQUEST, { id });
@@ -235,7 +229,6 @@ const RequestDetail = () => {
     }
   };
 
-  // ---------------- HANDLE REJECT REQUEST ----------------
   const handleRejectRequest = async () => {
     try {
       const data = await graphQLFetch(REJECT_REQUEST, { id });
@@ -249,7 +242,6 @@ const RequestDetail = () => {
     }
   };
 
-  // ---------------- HANDLE SEND MESSAGE ----------------
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim()) return;
@@ -265,7 +257,6 @@ const RequestDetail = () => {
     }
   };
 
-  // ---------------- HANDLE UPDATE REQUEST ----------------
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -285,7 +276,6 @@ const RequestDetail = () => {
     }
   };
 
-  // ---------------- HANDLE TOGGLE ACTIVATION ----------------
   const handleToggleActivation = async () => {
     try {
       const data = await graphQLFetch(TOGGLE_ACTIVATION, { id });
@@ -298,7 +288,6 @@ const RequestDetail = () => {
     }
   };
 
-  // ---------------- HANDLE DELETE REQUEST ----------------
   const handleDeleteRequest = async () => {
     const confirmed = window.confirm("Are you sure you want to delete this request?");
     if (!confirmed) return;
@@ -310,7 +299,6 @@ const RequestDetail = () => {
     }
   };
 
-  // ----------------- DERIVED FIELDS & RENDER LOGIC -----------------
   const isCreator =
     request &&
     request.requester &&
@@ -452,7 +440,6 @@ const RequestDetail = () => {
           <p className="text-gray-600 dark:text-gray-300">Request not found.</p>
         )}
 
-        {/* Accepted Volunteers */}
         {request && request.volunteers && request.volunteers.length > 0 ? (
           <div className="mt-8">
             <h2 className="text-2xl font-bold mb-4">Accepted Volunteers</h2>
@@ -498,7 +485,6 @@ const RequestDetail = () => {
           <p className="text-gray-400">No volunteers have accepted this request yet.</p>
         )}
 
-        {/* Chat Section */}
         <div className="mt-8">
           <h2 className="text-2xl font-bold mb-4">Chat</h2>
           <div className="bg-gray-700 p-4 rounded h-64 overflow-y-auto">
@@ -513,7 +499,6 @@ const RequestDetail = () => {
                   className="mb-4 border-b border-gray-600 pb-2"
                 >
                   <p className="text-sm text-gray-400">
-                    {/* Check if message author is the request's author */}
                     {request &&
                     request.requester &&
                     String(msg.author?.id) === String(request.requester.id) ? (

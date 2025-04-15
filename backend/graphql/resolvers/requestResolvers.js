@@ -1,7 +1,5 @@
-// graphql/resolvers/requestResolvers.js
 const { AuthenticationError, ApolloError } = require("apollo-server-express");
 
-// Mongoose models
 const User = require("../../models/User");
 const Request = require("../../models/Request");
 
@@ -34,13 +32,12 @@ module.exports = {
           .skip((page - 1) * limit)
           .limit(limit);
     
-        // Format the response and map _id to id
         const formattedRequests = requests.map((request) => {
-          const plainRequest = request.toObject(); // Convert Mongoose Document to plain object
+          const plainRequest = request.toObject();
           return {
             ...plainRequest,
-            id: plainRequest._id.toString(), // Convert ObjectId to string
-            createdAt: new Date(plainRequest.createdAt).toISOString(), // Ensure proper date formatting
+            id: plainRequest._id.toString(), 
+            createdAt: new Date(plainRequest.createdAt).toISOString(),
           };
         });
     
@@ -71,10 +68,9 @@ module.exports = {
     
         const plainRequest = requestItem.toObject();
     
-        // Safely handle volunteers and filter out any invalid or null entries
         const validVolunteers = plainRequest.volunteers
           ? plainRequest.volunteers
-              .filter((volunteer) => volunteer && volunteer._id) // Filter out invalid volunteers
+              .filter((volunteer) => volunteer && volunteer._id) 
               .map((volunteer) => ({
                 id: volunteer._id.toString(),
                 name: volunteer.name || "N/A",
@@ -94,7 +90,7 @@ module.exports = {
             email: plainRequest.requester.email,
             role: plainRequest.requester.role,
           } : null,
-          volunteers: validVolunteers, // Use filtered valid volunteers
+          volunteers: validVolunteers,
         };
       } catch (error) {
         throw new Error(`Failed to fetch request: ${error.message}`);
@@ -152,7 +148,6 @@ module.exports = {
 
     async deleteRequest(_, { id }, { user }) {
       if (!user) throw new AuthenticationError("Немає доступу");
-      // Optional: check if user is the owner or admin
 
       const request = await Request.findByIdAndDelete(id);
       if (!request) {
@@ -185,12 +180,10 @@ module.exports = {
         throw new ApolloError("Request not found");
       }
 
-      // Restrict request owner or admin from volunteering on the same request
       if (String(request.requester._id) === String(user.id) || user.role === "admin") {
         throw new ApolloError("Requester or Admin cannot accept the request");
       }
 
-      // Check if already a volunteer
       if (request.volunteers.includes(user.id)) {
         throw new ApolloError("User has already accepted this request");
       }

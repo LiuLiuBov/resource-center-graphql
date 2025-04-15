@@ -11,7 +11,6 @@ module.exports = {
         .populate("author", "_id name email")
         .sort({ createdAt: 1 });
 
-      // Filter out messages with invalid or missing authors
       const validMessages = messages
         .filter((msg) => msg.author && msg.author._id)
         .map((msg) => ({
@@ -44,10 +43,8 @@ module.exports = {
       });
       await chatMessage.save();
 
-      // Populate author for immediate return
       await chatMessage.populate("author", "_id name email");
 
-      // Return the formatted message with the correct author structure
       return {
         ...chatMessage.toObject(),
         id: chatMessage._id.toString(),
